@@ -32,10 +32,17 @@
 > 子进程拿到的是自己的隐藏控制台，恒报 120×30，窗口怎么缩都不变。
 > 真正的 ConPTY 挂在 `claude.exe` 上，所以 server 沿父进程链逐个 `AttachConsole`，
 > 取第一个尺寸不同的控制台。测完立刻摘下，免得被终端的 Ctrl+C 波及。
+>
+> ⚠️ **退化情形**：真终端恰好也是 120 列时，没有「尺寸不同的」控制台可找，
+> 函数会退回自身宽度——读数看着正常，其实没验到祖先链。要确认测量真的生效，
+> 把窗口拉成非 120 列再看一次。
+>
+> 想跳过测量：设 `ANSWER_CARD_WIDTH` 或 `COLUMNS`。两者都**原样当宽度用、不再减 8**，
+> 所以设成全窗口列数会让正文贴着右边被截断。一般不设。
 
 ## 安装
 
-需要：Python 3.10+、[uv](https://github.com/astral-sh/uv)、Claude Code。
+需要：Python 3.10+、Claude Code。**uv 是可选的**——有它不用管依赖，没有也能装。
 
 **1. 安装 skill**（可选，但强烈建议——它包含用哪张卡的判断规则）
 
@@ -47,10 +54,25 @@
 
 **2. 注册 MCP 服务器**
 
-把 `<路径>` 换成 clone 下来的目录：
+把 `<路径>` 换成 clone 下来的目录。
+
+**有 uv**（推荐：依赖自动拉取，不和本机环境打架）：
 
 ```bash
 claude mcp add answer-card --scope user -- uv run -q --with "mcp>=2,<3" --no-project <路径>/server.py
+```
+
+**没有 uv**：先给某个解释器装上依赖，再让 Claude Code 用**同一个解释器**启动。
+
+```bash
+python -m pip install "mcp>=2,<3"
+claude mcp add answer-card --scope user -- python <路径>/server.py
+```
+
+★ 第二条命令里的 `python` 必须就是装了 `mcp` 的那个。用虚拟环境更稳，写全路径：
+
+```bash
+claude mcp add answer-card --scope user -- <venv>/Scripts/python.exe <路径>/server.py
 ```
 
 **3. 重启 Claude Code** 生效。

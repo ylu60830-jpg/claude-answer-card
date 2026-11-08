@@ -30,12 +30,14 @@ description: 终端原生答题卡。做题、批改、收集结构化答案时�
 
 ### 默认：题干放正文，填空放卡片
 
-题干里有表格或多行时，**把题干直接打成正文**（用 ` ```text ` 代码块包住，防止 markdown 重排），
+题干里有表格或多行时，**把题干直接打成正文**，用 ` ```text ` 代码块包住——
+这样 `|`、`*`、`#` 不会被 markdown 当作语法重新渲染。
 紧跟 `ask_blanks`，题干只放一句「见上方表格」+ 若干填空框。
 
-- 关键好处：正文是聊天文本、**没有硬换行**，重排权在客户端 ⇒ 窗口拉宽拉窄它都跟着变，是**真自适应**。
+- 关键好处：正文行**没有硬换行**，软折行由终端按窗口宽度做 ⇒ 窗口拉宽拉窄它都跟着变，是**真自适应**。
   表单里的题干是 server 提前折死的，改窗口不跟随。两边各用各的长板。
-- 限制：表格宽度要留余量（建议 ≤ 终端列数 − 20），窗口一缩就会被折行、对齐崩。
+- 代码块里的换行是你敲的；窗口变窄时终端做的是**软折行**（不是截断），但表格一被折，对齐就崩。
+  所以表格宽度要留余量（建议 ≤ 终端列数 − 20）。
 
 ### 备选：两段式（题干卡 → 填空卡）
 
@@ -49,7 +51,9 @@ description: 终端原生答题卡。做题、批改、收集结构化答案时�
 ## 二、表单卡的硬限制（客户端定的，server 改不了）
 
 - **题干正文最多显示 4 行**（实测确认）。`AskUserQuestion` 没有这条限制。
-  超过 4 行会折叠成 3 行 + `… (+N more lines)`；单行超过「终端列数 − 6」会截断加 `…`。
+  server 自己先截：超过 4 行时保留前 3 行 + 「…（题干过长，完整题目见上方聊天正文）」，
+  所以客户端那句「… (+N more lines)」折叠提示基本不会出现。
+  单行超过「终端列数 − 6」会被客户端截断加 `…`。
 - 颜色和 Markdown 不可控：题干是单一灰色，`**加粗**`、反引号、`#` 会原样显示，别写。
 - 客户端对每行只截断、不重排（不像终端软折行），所以必须由 server 预折行。
 - server 每次调用时现测列数：MCP 子进程自己那个隐藏控制台恒报 120×30，不可用；
@@ -67,7 +71,7 @@ description: 终端原生答题卡。做题、批改、收集结构化答案时�
 ```python
 mcp__answer-card__ask_blanks(
     title="",                        # 不想多占一行就留空
-    prompt="第一行题干…\n第二行…",     # 题干正文，已预折行，≤4 行
+    prompt="第一行题干…\n第二行…",     # 题干正文；server 会按 width 预折行并截到 4 行
     fields=[
         {"name": "a_start", "label": "A · 开始", "type": "number"},
         {"name": "a_finish", "label": "A · 完成", "type": "number"},
@@ -81,8 +85,9 @@ mcp__answer-card__ask_blanks(
 - `type`：`number` 或 `text`，默认 text。
 - 返回 JSON：`action` 为 `accept` / `decline` / `cancel`；`answers` 是原始值；
   `rendered` 是 template 回填后的句子。
-- `width`：显示列数，0 = 自动（环境变量 `ANSWER_CARD_WIDTH` → `COLUMNS` → 实测终端列数 − 8 → 96）。
-  一般不用传，server 每次调用现测。
+- `width`：显示列数，0 = 自动（`ANSWER_CARD_WIDTH` → `COLUMNS` → 实测终端列数 − 8 → 96）。
+  ★ 前两个环境变量是**原样当宽度用的，不减 8**；设成全窗口列数会让正文贴右边被截断。
+  一般不传，让 server 每次现测。
 
 ## 四、ask_pages 调用要点
 
@@ -109,7 +114,7 @@ mcp__answer-card__ask_pages(
 
 ## 六、静默授权（可选）
 
-把这三个名字加进 `~/.claude/settings.json` 的 `permissions.allow`，调用时就不会再弹授权：
+把这三个名字加进 `~/.claude/settings.json`（或项目级 `.claude/settings.local.json`）的 `permissions.allow`，调用时就不会再弹授权：
 
 ```
 mcp__answer-card__ask_blanks
@@ -120,5 +125,5 @@ mcp__answer-card__ping
 ## 七、实现备注
 
 - 原理：MCP elicitation，`ctx.elicit(message, schema)`，客户端渲染原生表单。
-- 改了 server 代码要等下次启动才生效（stdio 常驻进程）；当次可用「调用时预折行」兜底。
+- 改了 server 代码要等下次启动才生效（stdio 常驻进程）；当次想验证新代码，直接跑 `test_client.py`。
 - Windows 上宽度测量走 Win32 `AttachConsole`；其它平台退回 `os.get_terminal_size()`。
