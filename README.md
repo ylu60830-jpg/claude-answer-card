@@ -74,6 +74,9 @@ claude mcp get answer-card     # 应显示 Status: ✔ Connected
 uv run -q --with "mcp>=2,<3" --no-project python test_client.py
 ```
 
+没装 uv 也行：先 `pip install "mcp>=2,<3"`，再直接 `python test_client.py`——
+脚本找不到 uv 就退回当前解释器（运行时会打印一行说明）。
+
 ## 已知限制（都是实测出来的，不是猜的）
 
 | 限制 | 说明 |

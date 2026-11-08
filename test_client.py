@@ -4,12 +4,22 @@
 
 import asyncio
 import json
+import shutil
+import sys
 from pathlib import Path
 
 from mcp import ClientSession, types
 from mcp.client.stdio import StdioServerParameters, stdio_client
 
 SERVER = str(Path(__file__).with_name("server.py"))
+
+
+def server_command() -> tuple[str, list[str]]:
+    """有 uv 就让 uv 现拉依赖；没有就退回当前解释器（要求它已装 mcp）。"""
+    if shutil.which("uv"):
+        return "uv", ["run", "-q", "--with", "mcp>=2,<3", "--no-project", SERVER]
+    print("未找到 uv，改用当前解释器：", sys.executable)
+    return sys.executable, [SERVER]
 
 
 FORM_CALLS: list[dict] = []
@@ -28,10 +38,8 @@ async def on_elicit(context, params):
 
 
 async def main():
-    params = StdioServerParameters(
-        command="uv",
-        args=["run", "-q", "--with", "mcp>=2,<3", "--no-project", SERVER],
-    )
+    command, args = server_command()
+    params = StdioServerParameters(command=command, args=args)
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write, elicitation_callback=on_elicit) as session:
             await session.initialize()
