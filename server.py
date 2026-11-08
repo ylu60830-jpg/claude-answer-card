@@ -19,9 +19,10 @@ server = MCPServer(
     "answer-card",
     instructions=(
         "教学答题卡。用 ask_blanks 弹出原生填空表单，收集用户对练习题的答案。"
-        "prompt 必须传题干正文（提交前可见），template 只用于提交后回填整句。"
-        "客户端只显示 4 行、每行超宽会截断；server 会按 width 预折行，"
-        "题干超过 4 行时请把完整题目放在聊天正文里。"
+        "题干短就放 prompt；题干带表格或多行时，把完整题干打成聊天正文，"
+        "prompt 只放一句「见上方」，紧跟着调用本工具。"
+        "template 只用于提交后回填整句。"
+        "客户端只显示 4 行、每行超宽会截断；server 会按 width 预折行。"
         "fields 按表格行、列顺序传入，label 里带上行名，例如「A · 开始」。"
         "选择题（有固定选项）优先用原生 AskUserQuestion，不用本表单。"
     ),
