@@ -151,8 +151,8 @@ mcp__answer-card__ask_pages(
 > 本节只在**做题/教学**时适用。非学习场景（需求澄清、方案收集、多行文本）收到 `answers` 直接用，跳过判分。
 
 - 卡只管收答案，**不判分**。收到 `answers` 后在主会话按模板对照、逐项标对错。
-- 遵守出题规则：正确项位置随机、题型轮换、练习产出是盲点清单（见 [[quiz-options-shuffle-correct-answer]]）。
-- 答错先给方向，不直接给答案（见 [[exercise-hints-not-answers]]）。
+- 遵守出题规则：正确项位置随机、题型轮换、练习产出是盲点清单。
+- 答错先给方向，不直接给答案。
 
 ## 六、静默授权
 
@@ -171,7 +171,9 @@ mcp__answer-card__ping
 ## 七、实现备注
 
 - server：源码在 answer-card 项目的 `mcp/answer-card/` 目录下（`server.py` / `test_client.py`），
-  本机实际位置按安装查，不写死盘符路径；注册与权限限制见 [[answer-card-mcp-server]]。
+  本机实际位置按安装查，不写死盘符路径；注册用
+  `claude mcp add -s user answer-card -- uv run -q --with "mcp>=2,<3" --no-project <server.py 的绝对路径>`，
+  权限见 §六。
 - 工具名前缀 `mcp__<服务器名>__` 随 `.mcp.json` 里注册的服务器名变化，本文按 `answer-card` 写；换名后同步改。
 - 原理：MCP elicitation，`ctx.elicit(message, schema)`，客户端渲染原生表单。
 - 改了 server 代码要等下次启动才生效（stdio 常驻进程）；当次想验证新代码，直接跑同目录的 `test_client.py`。

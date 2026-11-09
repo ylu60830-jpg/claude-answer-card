@@ -29,9 +29,13 @@ async def on_elicit(context, params):
     schema = params.requested_schema
     props = schema.get("properties", {})
     answers = {}
+    descs = {}
     for name, prop in props.items():
         answers[name] = 1.5 if prop.get("type") == "number" else "文本"
-    FORM_CALLS.append({"message": params.message, "fields": list(props)})
+        if prop.get("description"):
+            descs[name] = prop["description"]
+    FORM_CALLS.append(
+        {"message": params.message, "fields": list(props), "descs": descs})
     print("FORM title:", params.message)
     print("FORM fields:", list(props))
     return types.ElicitResult(action="accept", content=answers)
@@ -58,12 +62,17 @@ async def main():
                     "fields": [
                         {"name": "a_start", "label": "A · 开始", "type": "number"},
                         {"name": "a_finish", "label": "A · 完成", "type": "number"},
-                        {"name": "note", "label": "备注", "type": "text"},
+                        {"name": "note", "label": "备注", "type": "text",
+                         "desc": "题干第一行\n题干第二行\n题干第三行"},
                     ],
                 },
             )
             print("ASK:", result.content[0].text)
             print("PARSED:", json.loads(result.content[0].text))
+            desc = FORM_CALLS[0]["descs"].get("note", "")
+            print("DESC:", repr(desc))
+            assert desc == "题干第一行\n题干第二行\n题干第三行", \
+                "desc 未完整透传到字段 schema"
 
             FORM_CALLS.clear()
             wizard = await session.call_tool(
