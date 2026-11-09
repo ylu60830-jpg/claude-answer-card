@@ -18,13 +18,14 @@ from pydantic import Field, create_model
 server = MCPServer(
     "answer-card",
     instructions=(
-        "教学答题卡。用 ask_blanks 弹出原生填空表单，收集用户对练习题的答案。"
-        "题干短就放 prompt；题干带表格或多行时，把完整题干打成聊天正文，"
-        "prompt 只放一句「见上方」，紧跟着调用本工具。"
-        "template 只用于提交后回填整句。"
-        "客户端只显示 4 行、每行超宽会截断；server 会按 width 预折行。"
-        "fields 按表格行、列顺序传入，label 里带上行名，例如「A · 开始」。"
-        "选择题（有固定选项）优先用原生 AskUserQuestion，不用本表单。"
+        "文本收集表单，不限教学场景：聊天输入框回车即发送、不能换行，"
+        "凡是要用户一次回复多个问题、或一个问题要多行/多条文本时，用本工具收。"
+        "题干分层：单题且折行后不超过 4 行放 prompt（客户端只显示 4 行）；"
+        "多题时每题题干放该题第一个字段的 desc（多行不折叠、超宽自动折行）；"
+        "聊天正文只放材料（表格、代码），表格别进 prompt/desc。"
+        "框数按题定，默认一题一框；一题多答且条数未知时预分配 4 个 text 框、允许留空。"
+        "fields 的 label 单行、约 48 列截断，要带行名；template 只用于提交后回填整句。"
+        "选择题（有固定选项）用原生 AskUserQuestion，不用本表单。"
     ),
 )
 
@@ -42,9 +43,13 @@ def _build_form(fields: list[dict[str, Any]]):
     for item in fields:
         name = str(item["name"])
         label = str(item.get("label", name))
+        desc = str(item.get("desc", "") or "")
         kind = str(item.get("type", "text")).lower()
         py_type = float if kind == "number" else str
-        model_fields[name] = (py_type, Field(title=label))
+        info = {"title": label}
+        if desc:
+            info["description"] = desc
+        model_fields[name] = (py_type, Field(**info))
     return create_model("AnswerCard", **model_fields), list(model_fields)
 
 
@@ -261,7 +266,7 @@ def _compose_message(title: str, prompt: str, width: int = 0) -> str:
         if raw.strip():
             lines.extend(_wrap_line(raw.strip(), width))
     if len(lines) > MAX_LINES:
-        lines = lines[:MAX_LINES - 1] + ["…（题干过长，完整题目见上方聊天正文）"]
+        lines = lines[:MAX_LINES - 1] + ["…（题干过长，完整题目见上方正文或字段说明）"]
     return "\n".join(lines)
 
 
@@ -287,9 +292,13 @@ async def ask_blanks(
 
     prompt 是题干正文，显示在表单上方。客户端只显示 4 行、每行超宽会截断，
     server 会按 width（显示列数，0 = 自动：显式环境变量 > 控制台实测 − 8 >
-    96）预折行，题干控制在 4 行内即可完整显示；超过 4 行会提示看聊天正文。
+    96）预折行，题干控制在 4 行内即可完整显示；超过 4 行的题干改放字段 desc。
     fields 每项格式：
-        {"name": "a_start", "label": "A · 开始", "type": "number" | "text"}
+        {"name": "a_start", "label": "A · 开始", "type": "number" | "text",
+         "desc": "可选的题干/说明，渲染在字段下方，可多行"}
+
+    label 单行且约 48 列截断，题干别放 label；多行题干放 desc（desc 不限行数，
+    超宽长行由客户端按终端宽度自动折行，server 无需预处理）。
 
     template 可选，用 {name} 标出题目的空位，提交后回填，例如：
         "周转时间 = {turnaround}，等待时间 = {waiting}"
